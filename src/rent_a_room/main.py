@@ -1,4 +1,7 @@
-from fastapi import FastAPI, HTTPException, status
+from typing import Annotated
+
+from fastapi import FastAPI, HTTPException, Query, status
+from pydantic import AfterValidator
 
 app = FastAPI(
     title="Rent a Room API",
@@ -30,6 +33,28 @@ studio = {
     "bathrooms": 1,
 }
 
+search_query_validation = Query(
+    min_length=3,
+    max_length=10,
+    title="Search term",
+    description="Provide a keyword to look for within the room's title",
+)
+
+
+def fail_if_funny(search: str):
+    if "lol" in search:
+        raise ValueError("No funny business allowed")
+    return search
+
+
+search_humor_ban_validation = AfterValidator(fail_if_funny)
+
+SearchQuery = Annotated[
+    str | None,
+    search_query_validation,
+    search_humor_ban_validation,
+]
+
 
 @app.get("/", status_code=status.HTTP_200_OK)
 def root():
@@ -37,7 +62,10 @@ def root():
 
 
 @app.get("/rooms", status_code=status.HTTP_200_OK)
-def get_rooms(search: str | None = None, max_price: int | None = None):
+def get_rooms(
+    search: SearchQuery = None,
+    max_price: Annotated[int | None, Query(ge=10, le=10_000)] = None,
+):
     results = [apartment, house, studio]
 
     if search:
@@ -49,9 +77,20 @@ def get_rooms(search: str | None = None, max_price: int | None = None):
     return results
 
 
-@app.get("/rooms/faq", status_code=status.HTTP_200_OK)
-def rooms_faq():
-    return {"check_in": "From 3PM", "check_out": "Until 11AM"}
+@app.get("/rooms/mansions", status_code=status.HTTP_200_OK)
+def get_mansions(
+    search: SearchQuery = None,
+    max_price: Annotated[int | None, Query(ge=10, le=10_000)] = None,
+):
+    results = [house]
+
+    if search:
+        results = [room for room in results if search.lower() in room["name"].lower()]
+
+    if max_price:
+        results = [room for room in results if room["price_per_night"] <= max_price]
+
+    return results
 
 
 @app.get("/rooms/{room_id}", status_code=status.HTTP_200_OK)
