@@ -37,8 +37,16 @@ def root():
 
 
 @app.get("/rooms", status_code=status.HTTP_200_OK)
-def get_rooms():
-    return [apartment, house, studio]
+def get_rooms(search: str | None = None, max_price: int | None = None):
+    results = [apartment, house, studio]
+
+    if search:
+        results = [room for room in results if search.lower() in room["name"].lower()]
+
+    if max_price:
+        results = [room for room in results if room["price_per_night"] <= max_price]
+
+    return results
 
 
 @app.get("/rooms/faq", status_code=status.HTTP_200_OK)
