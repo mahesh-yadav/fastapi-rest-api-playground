@@ -1,6 +1,6 @@
 from typing import Annotated, Literal
 
-from fastapi import Cookie, FastAPI, HTTPException, Query, Response, status
+from fastapi import Cookie, FastAPI, Header, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field, StringConstraints, field_validator
 
 openapi_tags = [
@@ -70,7 +70,10 @@ class AppCookies(BaseModel):
 
 
 @app.get("/", status_code=status.HTTP_200_OK)
-def root(app_cookies: Annotated[AppCookies, Cookie()]):
+def root(
+    app_cookies: Annotated[AppCookies, Cookie()],
+    user_agent: Annotated[str | None, Header()] = None,
+):
     greetings = {
         "en": "Welcome to rent a room",
         "es": "Bienvenido a rent a room",
@@ -79,7 +82,7 @@ def root(app_cookies: Annotated[AppCookies, Cookie()]):
 
     greeting = greetings.get(app_cookies.language)
 
-    return {"message": greeting}
+    return {"message": greeting, "user_agent": user_agent}
 
 
 @app.get(
