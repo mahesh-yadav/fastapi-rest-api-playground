@@ -1,6 +1,6 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
-from fastapi import FastAPI, HTTPException, Query, status
+from fastapi import Cookie, FastAPI, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field, StringConstraints, field_validator
 
 openapi_tags = [
@@ -64,9 +64,22 @@ class RoomQueryParams(BaseModel):
         return search
 
 
+class AppCookies(BaseModel):
+    language: Literal["en", "es", "fr"] = "en"
+    theme: Literal["dark", "light"] = "dark"
+
+
 @app.get("/", status_code=status.HTTP_200_OK)
-def root():
-    return {"message": "Welcome to rent a room"}
+def root(app_cookies: Annotated[AppCookies, Cookie()]):
+    greetings = {
+        "en": "Welcome to rent a room",
+        "es": "Bienvenido a rent a room",
+        "fr": "Bienvenue sur rent a room",
+    }
+
+    greeting = greetings.get(app_cookies.language)
+
+    return {"message": greeting}
 
 
 @app.get(
@@ -117,3 +130,13 @@ def get_room(room_id: int):
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND, detail=f"Room: {room_id} not found"
     )
+
+
+@app.get("/preferences", status_code=status.HTTP_200_OK, tags=["preferences"])
+def set_preferences(response: Response):
+    app_cookies = AppCookies()
+
+    response.set_cookie("theme", app_cookies.theme)
+    response.set_cookie("language", app_cookies.language)
+
+    return {"message": "Preferences updated"}
