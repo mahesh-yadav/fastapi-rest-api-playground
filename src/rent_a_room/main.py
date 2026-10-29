@@ -1,7 +1,11 @@
+from contextlib import asynccontextmanager
 from typing import Annotated, Literal
 
 from fastapi import Cookie, FastAPI, Header, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field, StringConstraints, field_validator
+from sqlmodel import select
+
+from .database import SessionDep, create_db_and_tables
 
 openapi_tags = [
     {
@@ -11,7 +15,14 @@ openapi_tags = [
 ]
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_db_and_tables()
+    yield
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="Rent a Room API",
     description="Book a stay in a house or room",
     version="1.0.0",
@@ -71,9 +82,11 @@ class AppCookies(BaseModel):
 
 @app.get("/", status_code=status.HTTP_200_OK)
 def root(
+    session: SessionDep,
     app_cookies: Annotated[AppCookies, Cookie()],
     user_agent: Annotated[str | None, Header()] = None,
 ):
+    db_result = session.exec(select(5)).one()
     greetings = {
         "en": "Welcome to rent a room",
         "es": "Bienvenido a rent a room",
@@ -82,7 +95,7 @@ def root(
 
     greeting = greetings.get(app_cookies.language)
 
-    return {"message": greeting, "user_agent": user_agent}
+    return {"message": greeting, "user_agent": user_agent, "db_result": db_result}
 
 
 @app.get(
