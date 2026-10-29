@@ -1,11 +1,21 @@
 from contextlib import asynccontextmanager
 from typing import Annotated, Literal
 
-from fastapi import Cookie, FastAPI, Header, HTTPException, Query, Response, status
+from fastapi import (
+    Cookie,
+    FastAPI,
+    Header,
+    HTTPException,
+    Path,
+    Query,
+    Response,
+    status,
+)
 from pydantic import BaseModel, Field, StringConstraints, field_validator
-from sqlmodel import select
+from sqlmodel import col, select
 
 from .database import SessionDep, create_db_and_tables
+from .models import Room
 
 openapi_tags = [
     {
@@ -29,30 +39,6 @@ app = FastAPI(
     openapi_tags=openapi_tags,
 )
 
-apartment = {
-    "id": 1,
-    "name": "Sunny 2-bedroom apartment",
-    "price_per_night": 200,
-    "bedrooms": 2,
-    "bathrooms": 1.5,
-}
-
-house = {
-    "id": 2,
-    "name": "Cozy 3-bedroom house",
-    "price_per_night": 350,
-    "bedrooms": 3,
-    "bathrooms": 2.5,
-}
-
-studio = {
-    "id": 3,
-    "name": "Modern studio near museum",
-    "price_per_night": 150,
-    "bedrooms": 1,
-    "bathrooms": 1,
-}
-
 
 class RoomQueryParams(BaseModel):
     max_price: int | None = Field(
@@ -66,6 +52,8 @@ class RoomQueryParams(BaseModel):
         description="Provide a keyword to look for within the room's title",
         examples=["sunny", "bedroom", "house"],
     )
+    limit: int = Field(default=10, ge=1, le=100)
+    offset: int = Field(default=0, ge=0)
 
     @field_validator("search")
     @classmethod
@@ -75,6 +63,9 @@ class RoomQueryParams(BaseModel):
         return search
 
 
+RoomId = Annotated[int, Path(ge=1, description="The id of the room to fetch")]
+
+
 class AppCookies(BaseModel):
     language: Literal["en", "es", "fr"] = "en"
     theme: Literal["dark", "light"] = "dark"
@@ -82,11 +73,9 @@ class AppCookies(BaseModel):
 
 @app.get("/", status_code=status.HTTP_200_OK)
 def root(
-    session: SessionDep,
     app_cookies: Annotated[AppCookies, Cookie()],
     user_agent: Annotated[str | None, Header()] = None,
 ):
-    db_result = session.exec(select(5)).one()
     greetings = {
         "en": "Welcome to rent a room",
         "es": "Bienvenido a rent a room",
@@ -95,7 +84,16 @@ def root(
 
     greeting = greetings.get(app_cookies.language)
 
-    return {"message": greeting, "user_agent": user_agent, "db_result": db_result}
+    return {"message": greeting, "user_agent": user_agent}
+
+
+@app.post("/rooms", status_code=status.HTTP_201_CREATED, tags=["rooms"])
+def create_room(session: SessionDep, room: Room) -> Room:
+    session.add(room)  # Queues a write to the database
+    session.commit()  # Writes to the database
+    session.refresh(room)  # Sync the room instance with the database row
+
+    return room
 
 
 @app.get(
@@ -106,46 +104,35 @@ def root(
     description="Returns all rooms. Supports filtering by price and search term",
     response_description="List of rooms matching the filter criteria",
 )
-def get_rooms(params: Annotated[RoomQueryParams, Query()]):
-    results = [apartment, house, studio]
-
-    if params.search:
-        results = [room for room in results if params.search in room["name"].lower()]
+def get_rooms(session: SessionDep, params: Annotated[RoomQueryParams, Query()]):
+    statement = select(Room)
 
     if params.max_price:
-        results = [
-            room for room in results if room["price_per_night"] <= params.max_price
-        ]
-
-    return results
-
-
-@app.get(
-    "/rooms/mansions", status_code=status.HTTP_200_OK, tags=["rooms"], deprecated=True
-)
-def get_mansions(params: Annotated[RoomQueryParams, Query()]):
-    results = [house]
+        statement = statement.where(Room.price_per_night <= params.max_price)
 
     if params.search:
-        results = [room for room in results if params.search in room["name"].lower()]
+        statement = statement.where(col(Room.name).ilike(f"%{params.search}%"))
 
-    if params.max_price:
-        results = [
-            room for room in results if room["price_per_night"] <= params.max_price
-        ]
+    statement = statement.limit(params.limit).offset(params.offset).order_by(Room.id)
+
+    results = session.exec(statement).all()
 
     return results
 
 
 @app.get("/rooms/{room_id}", status_code=status.HTTP_200_OK, tags=["rooms"])
-def get_room(room_id: int):
-    for room in [apartment, house, studio]:
-        if room["id"] == room_id:
-            return room
+def get_room(
+    session: SessionDep,
+    room_id: RoomId,
+) -> Room:
+    room = session.get(Room, room_id)
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail=f"Room: {room_id} not found"
-    )
+    if room is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Room: {room_id} not found"
+        )
+
+    return room
 
 
 @app.get("/preferences", status_code=status.HTTP_200_OK, tags=["preferences"])
