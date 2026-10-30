@@ -1,5 +1,9 @@
 from sqlmodel import Field, SQLModel
 
+# model: refers to any class that interacts with the database e.g. Room
+# model: any class that models a domain idea e.g. rooms, users
+# schema: classes that model a request or response payload
+
 
 # shared fields for a room
 class RoomBase(SQLModel):

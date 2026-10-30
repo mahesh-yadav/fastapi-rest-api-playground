@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine
 
-from . import models  # noqa: F401  (registers tables on SQLModel.metadata)
+import rent_a_room.models.room  # noqa: F401  (registers tables on SQLModel.metadata)
 
 sqlite_file_name = "database.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
@@ -14,6 +14,7 @@ engine = create_engine(
 
 
 def create_db_and_tables():
+    # import all SQLModel models before creating the actual database
     SQLModel.metadata.create_all(engine)
 
 
