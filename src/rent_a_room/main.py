@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, StringConstraints, field_validator
 from sqlmodel import col, select
 
 from .database import SessionDep, create_db_and_tables
-from .models import Room
+from .models import Room, RoomBase, RoomPublic, RoomUpdate
 
 openapi_tags = [
     {
@@ -87,18 +87,25 @@ def root(
     return {"message": greeting, "user_agent": user_agent}
 
 
-@app.post("/rooms", status_code=status.HTTP_201_CREATED, tags=["rooms"])
-def create_room(session: SessionDep, room: Room) -> Room:
-    session.add(room)  # Queues a write to the database
+@app.post(
+    "/rooms",
+    status_code=status.HTTP_201_CREATED,
+    response_model=RoomPublic,
+    tags=["rooms"],
+)
+def create_room(session: SessionDep, room: RoomBase):
+    validated_room = Room.model_validate(room)
+    session.add(validated_room)  # Queues a write to the database
     session.commit()  # Writes to the database
-    session.refresh(room)  # Sync the room instance with the database row
+    session.refresh(validated_room)  # Sync the room instance with the database row
 
-    return room
+    return validated_room
 
 
 @app.get(
     "/rooms",
     status_code=status.HTTP_200_OK,
+    response_model=list[RoomPublic],
     tags=["rooms"],
     summary="List all available rooms",
     description="Returns all rooms. Supports filtering by price and search term",
@@ -120,11 +127,16 @@ def get_rooms(session: SessionDep, params: Annotated[RoomQueryParams, Query()]):
     return results
 
 
-@app.get("/rooms/{room_id}", status_code=status.HTTP_200_OK, tags=["rooms"])
+@app.get(
+    "/rooms/{room_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=RoomPublic,
+    tags=["rooms"],
+)
 def get_room(
     session: SessionDep,
     room_id: RoomId,
-) -> Room:
+):
     room = session.get(Room, room_id)
 
     if room is None:
@@ -132,6 +144,47 @@ def get_room(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Room: {room_id} not found"
         )
 
+    return room
+
+
+@app.patch(
+    "/rooms/{room_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=RoomPublic,
+    tags=["rooms"],
+)
+def update_room(session: SessionDep, room_id: RoomId, room_payload: RoomUpdate):
+    room = session.get(Room, room_id)
+
+    if room is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Room: {room_id} not found"
+        )
+
+    room.sqlmodel_update(room_payload.model_dump(exclude_unset=True))
+    session.add(room)
+    session.commit()
+    session.refresh(room)
+
+    return room
+
+
+@app.delete(
+    "/rooms/{room_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=RoomPublic,
+    tags=["rooms"],
+)
+def delete_room(session: SessionDep, room_id: RoomId):
+    room = session.get(Room, room_id)
+
+    if room is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Room: {room_id} not found"
+        )
+
+    session.delete(room)
+    session.commit()
     return room
 
 
