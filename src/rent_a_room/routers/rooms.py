@@ -36,8 +36,8 @@ class RoomQueryParams(BaseModel):
 RoomId = Annotated[int, Path(ge=1, description="The id of the room to fetch")]
 
 
-def get_room_or_404(session: SessionDep, room_id: RoomId) -> Room:
-    room = session.get(Room, room_id)
+async def get_room_or_404(session: SessionDep, room_id: RoomId) -> Room:
+    room = await session.get(Room, room_id)
 
     if room is None:
         raise HTTPException(
@@ -66,11 +66,13 @@ def check_maintenance_mode():
     response_model=RoomPublic,
     dependencies=[Depends(check_maintenance_mode)],
 )
-def create_room(session: SessionDep, room: RoomBase):
+async def create_room(session: SessionDep, room: RoomBase):
     validated_room = Room.model_validate(room)
     session.add(validated_room)  # Queues a write to the database
-    session.commit()  # Writes to the database
-    session.refresh(validated_room)  # Sync the room instance with the database row
+    await session.commit()  # Writes to the database
+    await session.refresh(
+        validated_room
+    )  # Sync the room instance with the database row
 
     return validated_room
 
@@ -83,7 +85,7 @@ def create_room(session: SessionDep, room: RoomBase):
     description="Returns all rooms. Supports filtering by price and search term",
     response_description="List of rooms matching the filter criteria",
 )
-def get_rooms(session: SessionDep, params: Annotated[RoomQueryParams, Query()]):
+async def get_rooms(session: SessionDep, params: Annotated[RoomQueryParams, Query()]):
     statement = select(Room)
 
     if params.max_price:
@@ -92,11 +94,13 @@ def get_rooms(session: SessionDep, params: Annotated[RoomQueryParams, Query()]):
     if params.search:
         statement = statement.where(col(Room.name).ilike(f"%{params.search}%"))
 
-    statement = statement.limit(params.limit).offset(params.offset).order_by(Room.id)
+    statement = (
+        statement.limit(params.limit).offset(params.offset).order_by(col(Room.id))
+    )
 
-    results = session.exec(statement).all()
+    rooms = await session.exec(statement)
 
-    return results
+    return rooms.all()
 
 
 @router.get(
@@ -104,7 +108,7 @@ def get_rooms(session: SessionDep, params: Annotated[RoomQueryParams, Query()]):
     status_code=status.HTTP_200_OK,
     response_model=RoomPublic,
 )
-def get_room(room: RoomDep):
+async def get_room(room: RoomDep):
     return room
 
 
@@ -114,11 +118,11 @@ def get_room(room: RoomDep):
     response_model=RoomPublic,
     dependencies=[Depends(check_maintenance_mode)],
 )
-def update_room(session: SessionDep, room: RoomDep, room_payload: RoomUpdate):
+async def update_room(session: SessionDep, room: RoomDep, room_payload: RoomUpdate):
     room.sqlmodel_update(room_payload.model_dump(exclude_unset=True))
     session.add(room)
-    session.commit()
-    session.refresh(room)
+    await session.commit()
+    await session.refresh(room)
 
     return room
 
@@ -129,7 +133,7 @@ def update_room(session: SessionDep, room: RoomDep, room_payload: RoomUpdate):
     response_model=RoomPublic,
     dependencies=[Depends(check_maintenance_mode)],
 )
-def delete_room(session: SessionDep, room: RoomDep):
-    session.delete(room)
-    session.commit()
+async def delete_room(session: SessionDep, room: RoomDep):
+    await session.delete(room)
+    await session.commit()
     return room
