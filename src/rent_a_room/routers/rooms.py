@@ -1,10 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field, StringConstraints, field_validator
 from sqlmodel import col, select
 
 from rent_a_room.dependencies.database import SessionDep
+from rent_a_room.dependencies.rooms import RoomDep
 from rent_a_room.models.room import Room, RoomBase, RoomPublic, RoomUpdate
 
 router = APIRouter(prefix="/rooms", tags=["rooms"])
@@ -32,22 +33,6 @@ class RoomQueryParams(BaseModel):
             raise ValueError("No funny business allowed")
         return search
 
-
-RoomId = Annotated[int, Path(ge=1, description="The id of the room to fetch")]
-
-
-async def get_room_or_404(session: SessionDep, room_id: RoomId) -> Room:
-    room = await session.get(Room, room_id)
-
-    if room is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Room: {room_id} not found"
-        )
-
-    return room
-
-
-RoomDep = Annotated[Room, Depends(get_room_or_404)]
 
 MAINTENANCE_MODE = False
 

@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, Request
 
 from rent_a_room.dependencies.database import create_db_and_tables
-from rent_a_room.routers import bookings, general, rooms
+from rent_a_room.routers import bookings, general, rooms, users
 
 openapi_tags = [
     {
@@ -35,3 +35,4 @@ app = FastAPI(
 app.include_router(general.router)
 app.include_router(rooms.router)
 app.include_router(bookings.router)
+app.include_router(users.router)
