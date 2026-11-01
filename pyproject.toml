@@ -10,6 +10,7 @@ requires-python = ">=3.14"
 dependencies = [
     "aiosqlite>=0.22.1",
     "fastapi[standard]>=0.162.0",
+    "pydantic-extra-types[phonenumbers]>=2.11.1",
     "sqlalchemy[asyncio]>=2.1.6",
     "sqlmodel>=0.0.48",
 ]
@@ -20,4 +21,8 @@ dev = [
 ]
 
 [tool.fastapi]
-entrypoint = "src.rent_a_room.main:app"
+entrypoint = "rent_a_room.main:app"
+
+[build-system]
+requires = ["uv_build>=0.13.0,<0.14.0"]
+build-backend = "uv_build"
