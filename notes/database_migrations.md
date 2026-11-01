@@ -11,3 +11,35 @@ Migrations give:
 ## Alembic
 
 Alembic detects the differences between the models and the current database schema, then generates the migrations.
+
+### Workflow
+
+1. Initialize: 
+
+```bash
+uv run alembic init migrations
+```
+
+2. Generate the Migration: 
+
+```bash
+uv run alembic revision --autogenerate -m "Create movies table"
+```
+
+3. Apply the Migration:
+
+```bash
+uv run alembic upgrade head
+```
+
+### Adding a non-null column
+
+**Problem:** If the table already has data, a new `NOT NULL` column has no value for them and the migration fails.
+
+**Solution:** 
+
+- Add the column as nullable
+
+- Populate existing rows with a valid value
+
+- Generate another migration to make the column non-null.
