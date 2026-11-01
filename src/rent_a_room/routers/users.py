@@ -1,7 +1,8 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, HTTPException, status
+from sqlalchemy.orm import selectinload
 
 from rent_a_room.dependencies.database import SessionDep
-from rent_a_room.dependencies.users import UserDep
+from rent_a_room.dependencies.users import UserDep, UserId
 from rent_a_room.models.booking import BookingPublic
 from rent_a_room.models.user import User, UserCreate, UserPublic
 
@@ -29,5 +30,26 @@ async def get_user(user: UserDep):
     status_code=status.HTTP_200_OK,
     response_model=list[BookingPublic],
 )
-async def get_user_bookings(user: UserDep):
+async def get_user_bookings(session: SessionDep, user_id: UserId):
+    # lazy loading: ORM fetches the bookings only when we access them, not when we fetched the user using the UserDep
+    # This lazy loading is Sync by default and we have a Async db connection
+    # If we had a Sync route handle and Sync db session, this would have worked fine
+    # return user.bookings
+
+    # eager loading: fetch immediately, while fetching the user, the ORM is going the fetch the associated bookings as well: two SQL queries
+
+    user = await session.get(
+        User,
+        user_id,
+        options=[
+            selectinload(User.bookings)  #  type: ignore
+        ],
+    )
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"User: {user_id} not found"
+        )
+
+    # bookings are already fetched
     return user.bookings
