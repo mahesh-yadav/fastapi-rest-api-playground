@@ -25,7 +25,7 @@ class Room(RoomBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
 
     # Field maps to a database column, bookings will not be a column in rooms table, so we use Relationship, back_populates establishes the association between two models in code.
-    bookings: list[Booking] = Relationship(back_populates="room")
+    bookings: list[Booking] = Relationship(back_populates="room", cascade_delete=True)
 
 
 # Response payload

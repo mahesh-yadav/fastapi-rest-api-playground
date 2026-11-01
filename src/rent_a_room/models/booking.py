@@ -19,7 +19,7 @@ class Booking(BookingBase, table=True):
     __tablename__: str = "bookings"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     id: int | None = Field(default=None, primary_key=True)
-    room_id: int = Field(foreign_key="rooms.id")
+    room_id: int = Field(foreign_key="rooms.id", ondelete="CASCADE")
     user_id: int = Field(foreign_key="users.id")
 
     room: Room = Relationship(back_populates="bookings")
