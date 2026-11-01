@@ -16,3 +16,4 @@ class Movie(SQLModel, table=True):
     title: str
     in_theaters: bool = False
     release_year: int
+    rating: float | None = Field(default=None)
