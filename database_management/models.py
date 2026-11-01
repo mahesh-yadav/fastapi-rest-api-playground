@@ -15,3 +15,4 @@ class Movie(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     title: str
     in_theaters: bool = False
+    release_year: int | None = None
