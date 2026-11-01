@@ -1,10 +1,12 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from sqlalchemy.orm import selectinload
 
 from rent_a_room.dependencies.database import SessionDep
 from rent_a_room.dependencies.users import UserDep, UserId
+from rent_a_room.errors import UserNotFound
 from rent_a_room.models.booking import BookingPublic
 from rent_a_room.models.user import User, UserCreate, UserPublic
+from rent_a_room.schemas.errors import NOT_FOUND_RESPONSE
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -20,7 +22,12 @@ async def create_user(session: SessionDep, user: UserCreate):
     return validated_user
 
 
-@router.get("/{user_id}", status_code=status.HTTP_200_OK, response_model=UserPublic)
+@router.get(
+    "/{user_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=UserPublic,
+    responses=NOT_FOUND_RESPONSE,
+)
 async def get_user(user: UserDep):
     return user
 
@@ -29,6 +36,7 @@ async def get_user(user: UserDep):
     "/{user_id}/bookings",
     status_code=status.HTTP_200_OK,
     response_model=list[BookingPublic],
+    responses=NOT_FOUND_RESPONSE,
 )
 async def get_user_bookings(session: SessionDep, user_id: UserId):
     # lazy loading: ORM fetches the bookings only when we access them, not when we fetched the user using the UserDep
@@ -47,9 +55,7 @@ async def get_user_bookings(session: SessionDep, user_id: UserId):
     )
 
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"User: {user_id} not found"
-        )
+        raise UserNotFound(f"User ({user_id}) not found")
 
     # bookings are already fetched
     return user.bookings

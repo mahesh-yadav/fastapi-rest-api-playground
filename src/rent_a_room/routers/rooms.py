@@ -1,12 +1,14 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, Field, StringConstraints, field_validator
 from sqlmodel import col, select
 
 from rent_a_room.dependencies.database import SessionDep
 from rent_a_room.dependencies.rooms import RoomDep
+from rent_a_room.errors import ServiceUnderMaintenance
 from rent_a_room.models.room import Room, RoomBase, RoomPublic, RoomUpdate
+from rent_a_room.schemas.errors import MAINTENANCE_RESPONSE, NOT_FOUND_RESPONSE
 
 router = APIRouter(prefix="/rooms", tags=["rooms"])
 
@@ -39,10 +41,7 @@ MAINTENANCE_MODE = False
 
 def check_maintenance_mode():
     if MAINTENANCE_MODE:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Service is under maintenance. Try again later",
-        )
+        raise ServiceUnderMaintenance()
 
 
 @router.post(
@@ -50,6 +49,7 @@ def check_maintenance_mode():
     status_code=status.HTTP_201_CREATED,
     response_model=RoomPublic,
     dependencies=[Depends(check_maintenance_mode)],
+    responses=MAINTENANCE_RESPONSE,
 )
 async def create_room(session: SessionDep, room: RoomBase):
     validated_room = Room.model_validate(room)
@@ -92,6 +92,7 @@ async def get_rooms(session: SessionDep, params: Annotated[RoomQueryParams, Quer
     "/{room_id}",
     status_code=status.HTTP_200_OK,
     response_model=RoomPublic,
+    responses=NOT_FOUND_RESPONSE,
 )
 async def get_room(room: RoomDep):
     return room
@@ -102,6 +103,7 @@ async def get_room(room: RoomDep):
     status_code=status.HTTP_200_OK,
     response_model=RoomPublic,
     dependencies=[Depends(check_maintenance_mode)],
+    responses=NOT_FOUND_RESPONSE | MAINTENANCE_RESPONSE,
 )
 async def update_room(session: SessionDep, room: RoomDep, room_payload: RoomUpdate):
     room.sqlmodel_update(room_payload.model_dump(exclude_unset=True))
@@ -117,6 +119,7 @@ async def update_room(session: SessionDep, room: RoomDep, room_payload: RoomUpda
     status_code=status.HTTP_200_OK,
     response_model=RoomPublic,
     dependencies=[Depends(check_maintenance_mode)],
+    responses=NOT_FOUND_RESPONSE | MAINTENANCE_RESPONSE,
 )
 async def delete_room(session: SessionDep, room: RoomDep):
     await session.delete(room)
