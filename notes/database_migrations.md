@@ -16,21 +16,49 @@ Alembic detects the differences between the models and the current database sche
 
 1. Initialize: 
 
-```bash
-uv run alembic init migrations
-```
+    ```bash
+    uv run alembic init migrations
+    ```
 
 2. Generate the Migration: 
 
-```bash
-uv run alembic revision --autogenerate -m "Create movies table"
-```
+    ```bash
+    uv run alembic revision --autogenerate -m "Create movies table"
+    ```
 
 3. Apply the Migration:
 
-```bash
-uv run alembic upgrade head
-```
+    ```bash
+    uv run alembic upgrade head
+    ```
+
+    ```bash
+    uv run alembic upgrade +1
+    ```
+
+    ```bash
+    uv run alembic upgrade <revision_id>
+    ```
+
+4. Rollback migrations
+
+    - Rolling back can result in data loss e.g. deletion of a column will also remove any data stored in it.
+
+    - This is not a pattern typically run in production.
+
+    ```bash
+    uv run alembic downgrade -1
+    ```
+
+    ```bash
+    uv run alembic downgrade base
+    ```
+
+5. View migration history
+
+    ```bash
+    uv run alembic history
+    ```
 
 ### Adding a non-null column
 
