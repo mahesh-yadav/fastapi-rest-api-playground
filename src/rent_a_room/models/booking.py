@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from pydantic import NaiveDatetime
 from sqlmodel import Field, Relationship, SQLModel
@@ -9,7 +9,6 @@ if TYPE_CHECKING:
 
 
 class BookingBase(SQLModel):
-    room_id: int
     user_id: int
     check_in: NaiveDatetime
     check_out: NaiveDatetime
@@ -19,16 +18,20 @@ class Booking(BookingBase, table=True):
     __tablename__: str = "bookings"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     id: int | None = Field(default=None, primary_key=True)
-    room_id: int = Field(foreign_key="rooms.id", ondelete="CASCADE")
+    room_id: int | None = Field(
+        default=None, foreign_key="rooms.id", ondelete="SET NULL"
+    )
     user_id: int = Field(foreign_key="users.id")
 
-    room: Room = Relationship(back_populates="bookings")
+    # `Room | None` fails: SQLAlchemy looks up the string 'Room | None' as a class name
+    room: Optional["Room"] = Relationship(back_populates="bookings")  # noqa: UP037, UP045
     user: User = Relationship(back_populates="bookings")
 
 
 class BookingPublic(BookingBase):
     id: int
+    room_id: int | None
 
 
 class BookingCreate(BookingBase):
-    pass
+    room_id: int
