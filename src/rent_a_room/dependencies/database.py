@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+import rent_a_room.models.booking
 import rent_a_room.models.room  # noqa: F401  (registers tables on SQLModel.metadata)
 
 sqlite_file_name = "database.db"

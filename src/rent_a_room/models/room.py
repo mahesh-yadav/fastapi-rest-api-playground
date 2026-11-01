@@ -1,4 +1,9 @@
-from sqlmodel import Field, SQLModel
+from typing import TYPE_CHECKING
+
+from sqlmodel import Field, Relationship, SQLModel
+
+if TYPE_CHECKING:
+    from rent_a_room.models.booking import Booking
 
 # model: refers to any class that interacts with the database e.g. Room
 # model: any class that models a domain idea e.g. rooms, users
@@ -15,9 +20,12 @@ class RoomBase(SQLModel):
 
 # Maps to the "rooms" table
 class Room(RoomBase, table=True):
-    __tablename__: str = "rooms"
+    __tablename__: str = "rooms"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     id: int | None = Field(default=None, primary_key=True)
+
+    # Field maps to a database column, bookings will not be a column in rooms table, so we use Relationship, back_populates establishes the association between two models in code.
+    bookings: list[Booking] = Relationship(back_populates="room")
 
 
 # Response payload
