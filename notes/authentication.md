@@ -64,6 +64,39 @@ A JWT consists of 3 separate segments separated by dots: `Header.Payload.Signatu
 
 The access token is a short-lived (10 minutes) token that grants access to the system. The refresh token is longer-lived (7 days) token that grants access to new access token.
 
+### JWT Invalidation
+
+Logout becomes client's responsibility. We can't delete a JWT from a server because the server does n't have it.
+
+- Logout button: Frontend app deletes the JWT token from wherever it is being stored
+
+If a malicious user gets access, they can impersonate as that user. That's why JWTs have a short expiration time.
+
+If backend needs to revoke a JWT before it expires, it must intorduce some form of server-side state.
+
+- Store revoked JWTs in a database/Redis
+
+- On every request, make sure JWT is not found in the revoked collection.
+
+### Reset Password
+
+If the user is authenticated:
+
+- We can define a patch endpoint, where the user provides their new and current passwords
+
+If the user forgets his password:
+
+- User requests a password reset by providing their email to an endpoint
+
+- The server generates a token and sent it to their email
+
+- User clicks the link in the email
+
+- User is taken to an app page that includes the token (usually as query param)
+
+- User completes a form with their new password, submission hits another endpoint and passes the token
+
+- Server verifies the token is valid, unexpired and belongs to user etc. and udpates the password
 
 ## Authorization
 

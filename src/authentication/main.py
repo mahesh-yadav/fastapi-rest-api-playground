@@ -1,4 +1,6 @@
+import secrets
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, FastAPI, HTTPException, status
@@ -6,7 +8,15 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlmodel import select
 
 from authentication.database import SessionDep, create_db_and_tables
-from authentication.models import User, UserCreate, UserResponse, UserUpdate
+from authentication.models import (
+    PasswordResetConfirm,
+    PasswordResetRequest,
+    PasswordResetToken,
+    User,
+    UserCreate,
+    UserResponse,
+    UserUpdate,
+)
 from authentication.security import (
     create_access_token,
     create_refresh_token,
@@ -196,3 +206,64 @@ def update_me(
 
 
 app.include_router(user_router)
+
+
+@app.post("/password-request/request")
+def request_password_reset(session: SessionDep, payload: PasswordResetRequest):
+    message = {
+        "message": "If an account exists with this email, a reset link has been sent"
+    }
+
+    user = session.exec(select(User).where(User.email == payload.email)).first()
+    if not user or not user.id:
+        return message
+
+    token = secrets.token_urlsafe(nbytes=32)
+
+    reset_token = PasswordResetToken(
+        token=token,
+        user_id=user.id,
+        expires_at=datetime.now(UTC) + timedelta(minutes=10),
+    )
+
+    session.add(reset_token)
+    session.commit()
+
+    # In prod, send an email to the user
+
+    return message
+
+
+@app.post("/password-request/confirm")
+def confirm_password_reset(session: SessionDep, payload: PasswordResetConfirm):
+    reset_token = session.exec(
+        select(PasswordResetToken).where(PasswordResetToken.token == payload.token)
+    ).first()
+
+    if not reset_token or reset_token.used:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reset token"
+        )
+
+    token_expired = reset_token.expires_at < datetime.now(UTC).replace(tzinfo=None)
+    if token_expired:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reset token"
+        )
+
+    user = session.get(User, reset_token.user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reset token"
+        )
+
+    user.hashed_password = hash_password(payload.new_password)
+    session.add(user)
+    reset_token.used = True
+    session.add(reset_token)
+
+    session.commit()
+
+    # In prod, send an email to the user
+
+    return {"message": "Password reset successfully"}
