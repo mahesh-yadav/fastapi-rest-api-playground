@@ -2,12 +2,19 @@ from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlmodel import select
 
 from authentication.database import SessionDep, create_db_and_tables
 from authentication.models import User, UserCreate, UserResponse
-from authentication.security import create_access_token, hash_password, verify_password
+from authentication.security import (
+    create_access_token,
+    decode_access_token,
+    hash_password,
+    verify_password,
+)
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 @asynccontextmanager
@@ -17,6 +24,40 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+def get_current_user(
+    session: SessionDep, token: Annotated[str, Depends(oauth2_scheme)]
+):
+    payload = decode_access_token(token)
+
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    email = payload.get("sub")
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = session.exec(select(User).where(User.email == email)).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return user
+
+
+CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @app.post("/register", status_code=status.HTTP_201_CREATED, response_model=UserResponse)
@@ -68,3 +109,8 @@ def login(
 
     # bearer token: client has the responsibility to send the token
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.get("/me", status_code=status.HTTP_200_OK, response_model=UserResponse)
+def get_me(current_user: CurrentUser):
+    return current_user
