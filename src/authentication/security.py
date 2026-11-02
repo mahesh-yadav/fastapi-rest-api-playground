@@ -7,6 +7,7 @@ from authentication.settings import settings
 
 ACCESS_TOKEN_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRATION_MINUTES = 10
+REFRESH_TOKEN_EXPIRATION_DAYS = 7
 
 password_hash = PasswordHash.recommended()
 
@@ -27,14 +28,14 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     else:
         expiration_time = now + timedelta(minutes=ACCESS_TOKEN_EXPIRATION_MINUTES)
 
-    payload = {**data, "iat": now, "exp": expiration_time}
+    payload = {**data, "iat": now, "exp": expiration_time, "type": "access"}
 
     return jwt.encode(
         payload=payload, algorithm=ACCESS_TOKEN_ALGORITHM, key=settings.JWT_SECRET_KEY
     )
 
 
-def decode_access_token(token: str) -> dict | None:
+def decode_token(token: str) -> dict | None:
     try:
         payload = jwt.decode(
             jwt=token, key=settings.JWT_SECRET_KEY, algorithms=[ACCESS_TOKEN_ALGORITHM]
@@ -42,3 +43,18 @@ def decode_access_token(token: str) -> dict | None:
         return payload
     except jwt.PyJWTError:
         return None
+
+
+def create_refresh_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    now = datetime.now(UTC)
+
+    if expires_delta:
+        expiration_time = now + expires_delta
+    else:
+        expiration_time = now + timedelta(days=REFRESH_TOKEN_EXPIRATION_DAYS)
+
+    payload = {**data, "iat": now, "exp": expiration_time, "type": "refresh"}
+
+    return jwt.encode(
+        payload=payload, algorithm=ACCESS_TOKEN_ALGORITHM, key=settings.JWT_SECRET_KEY
+    )

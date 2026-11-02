@@ -46,7 +46,7 @@ Token-based authentication is stateless (the server stores nothing) unlike `sess
 
 - Because the server stores nothing, it can't revoke a token before it expires. That's why tokens are short-lived.
 
-### JWT
+### JWT Token
 
 A JWT is a string that contains encoded user information.
 
@@ -59,6 +59,11 @@ A JWT consists of 3 separate segments separated by dots: `Header.Payload.Signatu
     - The technical terminology for a key-value pair within the payload is called a `claim`.
 
 3. **Signature**: It proves the token has not been tempered with. It is created using a secret key on the server.
+
+### Refresh Token
+
+The access token is a short-lived (10 minutes) token that grants access to the system. The refresh token is longer-lived (7 days) token that grants access to new access token.
+
 
 ## Authorization
 
