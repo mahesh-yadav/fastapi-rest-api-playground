@@ -1,4 +1,12 @@
+from datetime import UTC, datetime, timedelta
+
+import jwt
 from pwdlib import PasswordHash
+
+from authentication.settings import settings
+
+ACCESS_TOKEN_ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRATION_MINUTES = 10
 
 password_hash = PasswordHash.recommended()
 
@@ -9,3 +17,18 @@ def hash_password(plain_password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return password_hash.verify(plain_password, hashed_password)
+
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    now = datetime.now(UTC)
+
+    if expires_delta:
+        expiration_time = now + expires_delta
+    else:
+        expiration_time = now + timedelta(minutes=ACCESS_TOKEN_EXPIRATION_MINUTES)
+
+    payload = {**data, "iat": now, "exp": expiration_time}
+
+    return jwt.encode(
+        payload=payload, algorithm=ACCESS_TOKEN_ALGORITHM, key=settings.JWT_SECRET_KEY
+    )
