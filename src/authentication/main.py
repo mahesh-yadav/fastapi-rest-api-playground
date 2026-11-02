@@ -3,8 +3,12 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Body, Depends, FastAPI, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import APIRouter, Body, Depends, FastAPI, HTTPException, Security, status
+from fastapi.security import (
+    OAuth2PasswordBearer,
+    OAuth2PasswordRequestForm,
+    SecurityScopes,
+)
 from sqlmodel import select
 
 from authentication.database import SessionDep, create_db_and_tables
@@ -25,7 +29,14 @@ from authentication.security import (
     verify_password,
 )
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="token",
+    scopes={
+        "read:users": "Read users",
+        "write:users": "Create and update users",
+        "delete:users": "Delete users",
+    },
+)
 
 
 @asynccontextmanager
@@ -73,6 +84,26 @@ def get_current_user(
         )
 
     return user
+
+
+def get_current_user_with_scope_check(
+    current_user: Annotated[User, Depends(get_current_user)],
+    token: Annotated[str, Depends(oauth2_scheme)],
+    security_scopes: SecurityScopes,
+) -> User:
+    payload = decode_token(token)
+    assert payload is not None
+
+    user_scopes = payload.get("scopes", [])
+    for scope in security_scopes.scopes:
+        if scope not in user_scopes:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    return current_user
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
@@ -139,8 +170,10 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token = create_access_token(data={"sub": existing_user.email})
-    refresh_token = create_refresh_token(data={"sub": existing_user.email})
+    data = {"sub": existing_user.email, "scopes": form_data.scopes}
+
+    access_token = create_access_token(data=data)
+    refresh_token = create_refresh_token(data=data)
 
     # bearer token: client has the responsibility to send the token
     return {
@@ -288,14 +321,20 @@ admin_router = APIRouter(
 
 
 @admin_router.get(
-    "/users", status_code=status.HTTP_200_OK, response_model=list[UserResponse]
+    "/users",
+    status_code=status.HTTP_200_OK,
+    response_model=list[UserResponse],
+    dependencies=[Security(get_current_user_with_scope_check, scopes=["read:users"])],
 )
 def get_users(session: SessionDep):
     return session.exec(select(User)).all()
 
 
 @admin_router.delete(
-    "/users/{user_id}", status_code=status.HTTP_200_OK, response_model=UserResponse
+    "/users/{user_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=UserResponse,
+    dependencies=[Security(get_current_user_with_scope_check, scopes=["delete:users"])],
 )
 def delete_user(session: SessionDep, user_id: int):
     user = session.get(User, user_id)

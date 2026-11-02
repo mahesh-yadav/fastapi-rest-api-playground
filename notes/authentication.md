@@ -107,3 +107,10 @@ Authorization is the act of allowing or prohibiting the user from taking an acti
 In RBAC, the users are assigned roles within the system. A role is just a designation like user or admin.
 
 What actions users can take is determined by their role. e.g. A specific route can only be accessed by an admin user (authenticated plus authorized)
+
+
+### OAuth2 Scopes
+
+Scopes grant permission based on resources and what you can do with them. Scopes are permission strings e.g. read:users, delete:users.
+
+When the user logs in, we define their scopes on the JWT. On every request, we can validate that the user has the required permission/scope.
