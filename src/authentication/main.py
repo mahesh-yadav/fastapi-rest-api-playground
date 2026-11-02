@@ -1,7 +1,7 @@
 import secrets
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Body, Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -76,6 +76,22 @@ def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+Role = Literal["USER", "ADMIN"]
+
+
+class RoleRequired:
+    def __init__(self, role: Role):
+        self.role = role
+
+    def __call__(self, current_user: CurrentUser):
+        if current_user.role != self.role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"This action requires the `{self.role}` role",
+            )
+
+        return current_user
 
 
 @app.post("/register", status_code=status.HTTP_201_CREATED, response_model=UserResponse)
@@ -205,9 +221,6 @@ def update_me(
     return current_user
 
 
-app.include_router(user_router)
-
-
 @app.post("/password-request/request")
 def request_password_reset(session: SessionDep, payload: PasswordResetRequest):
     message = {
@@ -267,3 +280,35 @@ def confirm_password_reset(session: SessionDep, payload: PasswordResetConfirm):
     # In prod, send an email to the user
 
     return {"message": "Password reset successfully"}
+
+
+admin_router = APIRouter(
+    prefix="/admin", tags=["admin"], dependencies=[Depends(RoleRequired(role="ADMIN"))]
+)
+
+
+@admin_router.get(
+    "/users", status_code=status.HTTP_200_OK, response_model=list[UserResponse]
+)
+def get_users(session: SessionDep):
+    return session.exec(select(User)).all()
+
+
+@admin_router.delete(
+    "/users/{user_id}", status_code=status.HTTP_200_OK, response_model=UserResponse
+)
+def delete_user(session: SessionDep, user_id: int):
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+
+    session.delete(user)
+    session.commit()
+
+    return user
+
+
+app.include_router(user_router)
+app.include_router(admin_router)

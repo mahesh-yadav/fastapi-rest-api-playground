@@ -2,7 +2,7 @@
 
 ## Authentication
 
-Authentication verifies the identity of the user. It answers:
+Authentication verifies the identity of the user. It answers "who the user is?"
 
 - Is bob@example.com a real user within our system?
 
@@ -100,6 +100,10 @@ If the user forgets his password:
 
 ## Authorization
 
-Authorization is the act of allowing or prohibiting the user from taking an action after they have authenticated. It answers:
+Authorization is the act of allowing or prohibiting the user from taking an action after they have authenticated. It answers "what actions the user can take?".
 
-- What Bob is allowed to do?
+### Role Based Access Control (RBAC)
+
+In RBAC, the users are assigned roles within the system. A role is just a designation like user or admin.
+
+What actions users can take is determined by their role. e.g. A specific route can only be accessed by an admin user (authenticated plus authorized)
