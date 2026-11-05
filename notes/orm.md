@@ -31,6 +31,6 @@ They organize data in tables.
 
 Tables are linked with each other via foreign keys. 
     
-    - A foreign key is just a column within a table that references the primary key of another table. It connects records from different tables.
+- A foreign key is just a column within a table that references the primary key of another table. It connects records from different tables.
 
-    - It's called a foreign key because a key is just an identifier and it's foreign because it's an identifier living in another table.
+- It's called a foreign key because a key is just an identifier and it's foreign because it's an identifier living in another table.

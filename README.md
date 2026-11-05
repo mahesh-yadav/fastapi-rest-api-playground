@@ -39,6 +39,20 @@ uv run fastapi dev
 
 The API runs at http://localhost:8000. Interactive docs are at `/docs`.
 
+## Configuration
+
+The Rent-a-Room app (`src/rent_a_room/`) needs no configuration. It uses a local SQLite file, `database.db`.
+
+The authentication example (`src/authentication/`) reads its settings from a `.env` file in the project root. `.env` is git-ignored, so create it yourself:
+
+```bash
+echo "JWT_SECRET_KEY=$(openssl rand -hex 32)" > .env
+```
+
+| Variable | Required | Description |
+|---|---|---|
+| `JWT_SECRET_KEY` | Yes | Secret used to sign and verify JWT access and refresh tokens |
+
 ## Tech stack
 
 Python 3.14, FastAPI, SQLModel, SQLAlchemy (async), Alembic, Pydantic, PyJWT, pwdlib, uv, Locust, k6

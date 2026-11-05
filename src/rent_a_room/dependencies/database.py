@@ -13,7 +13,7 @@ import rent_a_room.models.user  # noqa: F401
 sqlite_file_name = "database.db"
 sqlite_url = f"sqlite+aiosqlite:///{sqlite_file_name}"
 
-engine = create_async_engine(url=sqlite_url, echo=True)
+engine = create_async_engine(url=sqlite_url)
 
 
 @event.listens_for(engine.sync_engine, "connect")
