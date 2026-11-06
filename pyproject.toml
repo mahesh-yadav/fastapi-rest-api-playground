@@ -32,6 +32,14 @@ entrypoint = "rent_a_room.main:app"
 [tool.ruff]
 src = [".", "src", "database_management"]
 
+[tool.locust]
+locustfile = "locust_files/first_test.py"
+host = "http://localhost:8000"
+users = 50
+spawn-rate = 5
+run-time = "1m"
+headless = true
+
 [build-system]
 requires = ["uv_build>=0.13.0,<0.14.0"]
 build-backend = "uv_build"

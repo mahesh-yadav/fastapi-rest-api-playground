@@ -4,7 +4,9 @@ from locust import HttpUser, between, task
 
 
 class GuestUser(HttpUser):
-    wait_time = between(1, 5)
+    wait_time = between(
+        1, 3
+    )  # user waits between 1 and 3 seconds after each task is executed
 
     @task
     def view_rooms(self):
